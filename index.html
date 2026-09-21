@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全自動ソルブ・2次元ルービックキューブ (3²)</title>
+    <title>神のソルブ搭載・2次元ルービックキューブ (3²)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -81,21 +81,24 @@
         .br-ccw { bottom: 10px; right: 10px; }
 
         .button-group {
-            margin-top: 30px;
+            margin-top: 20px;
             display: flex;
-            gap: 15px;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 600px;
         }
 
         .system-btn {
-            padding: 12px 24px;
-            font-size: 15px;
+            padding: 12px 20px;
+            font-size: 14px;
             font-weight: bold;
             background-color: #333;
             color: #00ffcc;
             border: 2px solid #00ffcc;
             border-radius: 5px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
         .system-btn:hover { background-color: #00ffcc; color: #111; }
         .system-btn:disabled {
@@ -105,35 +108,87 @@
             cursor: not-allowed;
         }
 
-        /* 全自動ソルブボタン */
-        .solve-btn {
+        /* 逆再生ソルブボタン */
+        .history-solve-btn {
+            background-color: #222;
+            color: #ff9f0a;
+            border-color: #ff9f0a;
+        }
+        .history-solve-btn:hover { background-color: #ff9f0a; color: #111; }
+        .history-solve-btn.active { background-color: #ff3b30; border-color: #ff3b30; color: #fff; }
+
+        /* ✨新設：神のソルブ（最短手数）ボタン */
+        .god-solve-btn {
             background-color: #00ffcc;
             color: #111;
+            border-color: #00ffcc;
         }
-        .solve-btn:hover { background-color: #ffffff; border-color: #ffffff; }
-        
-        /* 停止状態のスタイル */
-        .solve-btn.active {
-            background-color: #ff3b30;
-            border-color: #ff3b30;
-            color: #fff;
-        }
-        .solve-btn.active:hover { background-color: #ff453a; }
+        .god-solve-btn:hover { background-color: #ffffff; border-color: #ffffff; color: #111; box-shadow: 0 0 15px #00ffcc; }
+        .god-solve-btn.active { background-color: #ff3b30; border-color: #ff3b30; color: #fff; }
 
         .status-text {
             margin-top: 15px;
             font-size: 14px;
             color: #00ffcc;
             height: 20px;
+            font-weight: bold;
+        }
+
+        .extension-container {
+            margin-top: 25px;
+            width: 100%;
+            max-width: 500px;
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-sizing: border-box;
+        }
+
+        .history-box {
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 40px;
+            max-height: 80px;
+            overflow-y: auto;
+            word-wrap: break-word;
+            font-family: 'Courier New', Courier, monospace;
+            color: #00ffcc;
+            font-size: 14px;
+            text-align: left;
+            margin-bottom: 15px;
+            border: 1px solid #222;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .sequence-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            background: #222;
+            border: 1px solid #00ffcc;
+            color: #fff;
+            border-radius: 5px;
+            text-transform: uppercase;
+        }
+
+        .sequence-input:disabled {
+            border-color: #444;
+            color: #555;
         }
     </style>
 </head>
 <body>
 
-    <h1>2Dルービックキューブ (3²) + ノンストップソルバー</h1>
+    <h1>2Dルービックキューブ (3²) + 神のソルバー</h1>
     <p>
-        シャッフルした後に「ノンストップ全自動ソルブ」を押すと、<br>
-        1手ずつパラパラ漫画のように自動で巻き戻り、綺麗な初期状態へ復元されます！
+        シャッフル後、自分の歴史を戻す「履歴逆再生ソルブ」か、<br>
+        AIが一瞬で最短ルート（神の数）を計算して解く「神のソルブ」を選べます！
     </p>
 
     <div class="game-container">
@@ -151,11 +206,23 @@
             <button class="rot-btn br-ccw" onclick="playerMove('br', false)">↺</button>
         </div>
 
-        <div class="status-text" id="status">残り 0 手で初期状態に戻ります</div>
+        <div class="status-text" id="status">🎉 完全に揃っています！</div>
 
         <div class="button-group">
             <button class="system-btn" id="shuffleBtn" onclick="shuffleBoard()">シャッフルする</button>
-            <button class="system-btn solve-btn" id="solveBtn" onclick="toggleAutoSolve()" disabled>ノンストップ全自動ソルブ</button>
+            <button class="system-btn history-solve-btn" id="historySolveBtn" onclick="toggleHistorySolve()" disabled>履歴逆再生ソルブ</button>
+            <button class="system-btn god-solve-btn" id="godSolveBtn" onclick="startGodSolve()" disabled>⚡ 神のソルブ (最短手数)</button>
+        </div>
+
+        <div class="extension-container">
+            <div style="text-align: left; font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: bold;">MOVE HISTORY (操作履歴):</div>
+            <div class="history-box" id="historyBox">None</div>
+
+            <div style="text-align: left; font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: bold;">EXECUTE NOTATION (手順実行):</div>
+            <div class="input-group">
+                <input type="text" class="sequence-input" id="seqInput" placeholder="例: TL TR' BL2 BR" onkeydown="if(event.key==='Enter') executeSequence()">
+                <button class="system-btn" id="execBtn" onclick="executeSequence()" style="padding: 10px 15px; font-size: 13px;">実行</button>
+            </div>
         </div>
     </div>
 
@@ -169,14 +236,19 @@
         let grid = [];
         let moveHistory = [];
         let solveTimer = null; // 自動再生用のタイマー
+        let godSolveQueue = []; // 神のソルブ用の予定手順リスト
+
+        // ゴール状態の定義（判定用）
+        const GOAL_GRID = [
+            [{t: U, r: X, b: X, l: L}, {t: U, r: X, b: X, l: X}, {t: U, r: R, b: X, l: X}],
+            [{t: X, r: X, b: X, l: L}, {t: X, r: X, b: X, l: X}, {t: X, r: R, b: X, l: X}],
+            [{t: X, r: X, b: D, l: L}, {t: X, r: X, b: D, l: X}, {t: X, r: R, b: D, l: X}]
+        ];
 
         function initGrid() {
-            grid = [
-                [{t: U, r: X, b: X, l: L}, {t: U, r: X, b: X, l: X}, {t: U, r: R, b: X, l: X}],
-                [{t: X, r: X, b: X, l: L}, {t: X, r: X, b: X, l: X}, {t: X, r: R, b: X, l: X}],
-                [{t: X, r: X, b: D, l: L}, {t: X, r: X, b: D, l: X}, {t: X, r: R, b: D, l: X}]
-            ];
+            grid = cloneGrid(GOAL_GRID);
             moveHistory = [];
+            godSolveQueue = [];
             stopAutoSolve();
             updateUI();
         }
@@ -199,11 +271,7 @@
         }
 
         function rotatePiece(piece, cw) {
-            if (cw) {
-                return { t: piece.l, r: piece.t, b: piece.r, l: piece.b };
-            } else {
-                return { t: piece.r, r: piece.b, b: piece.l, l: piece.t };
-            }
+            return cw ? { t: piece.l, r: piece.t, b: piece.r, l: piece.b } : { t: piece.r, r: piece.b, b: piece.l, l: piece.t };
         }
 
         function rotate2x2(area, cw) {
@@ -229,66 +297,228 @@
             renderBoard();
         }
 
+        function rotateGridInternal(targetGrid, area, cw) {
+            let rStart = (area === 'bl' || area === 'br') ? 1 : 0;
+            let cStart = (area === 'tr' || area === 'br') ? 1 : 0;
+            let p00 = targetGrid[rStart][cStart];     
+            let p01 = targetGrid[rStart][cStart+1];   
+            let p10 = targetGrid[rStart+1][cStart];   
+            let p11 = targetGrid[rStart+1][cStart+1]; 
+            if (cw) {
+                targetGrid[rStart][cStart]     = rotatePiece(p10, true); 
+                targetGrid[rStart][cStart+1]   = rotatePiece(p00, true); 
+                targetGrid[rStart+1][cStart+1] = rotatePiece(p01, true); 
+                targetGrid[rStart+1][cStart]   = rotatePiece(p11, true); 
+            } else {
+                targetGrid[rStart][cStart]     = rotatePiece(p01, false); 
+                targetGrid[rStart][cStart+1]   = rotatePiece(p11, false); 
+                targetGrid[rStart+1][cStart+1] = rotatePiece(p10, false); 
+                targetGrid[rStart+1][cStart]   = rotatePiece(p00, false); 
+            }
+        }
+
         function playerMove(area, cw) {
-            if (solveTimer) return; // 自動再生中は通常操作を無視
+            if (solveTimer) return; 
             rotate2x2(area, cw);
             moveHistory.push({ area: area, cw: cw });
             updateUI();
         }
 
+        function serializeGrid(targetGrid) {
+            let str = "";
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    const p = targetGrid[r][c];
+                    str += `${p.t},${p.r},${p.b},${p.l}|`;
+                }
+            }
+            return str;
+        }
+
+        function cloneGrid(src) {
+            return src.map(row => row.map(piece => ({ ...piece })));
+        }
+
+        function generateNotationString() {
+            if (moveHistory.length === 0) return "None";
+            let notations = [];
+            let i = 0;
+            while (i < moveHistory.length) {
+                let current = moveHistory[i];
+                if (i + 1 < moveHistory.length && moveHistory[i+1].area === current.area && moveHistory[i+1].cw === current.cw) {
+                    notations.push(current.area.toUpperCase() + "2");
+                    i += 2;
+                } else {
+                    notations.push(current.area.toUpperCase() + (current.cw ? "" : "'"));
+                    i += 1;
+                }
+            }
+            return notations.join(" ");
+        }
+
+        function isSolved() {
+            return serializeGrid(grid) === serializeGrid(GOAL_GRID);
+        }
+
         function updateUI() {
-            const solveBtn = document.getElementById('solveBtn');
+            const historySolveBtn = document.getElementById('historySolveBtn');
+            const godSolveBtn = document.getElementById('godSolveBtn');
             const shuffleBtn = document.getElementById('shuffleBtn');
             const rotButtons = document.querySelectorAll('.rot-btn');
             const statusText = document.getElementById('status');
+            const historyBox = document.getElementById('historyBox');
+            const seqInput = document.getElementById('seqInput');
+            const execBtn = document.getElementById('execBtn');
             
+            historyBox.innerText = generateNotationString();
+            historyBox.scrollTop = historyBox.scrollHeight;
+
             if (solveTimer) {
-                statusText.innerText = `自動再生中... 残り ${moveHistory.length} 手`;
-                solveBtn.innerText = "一時停止する";
-                solveBtn.classList.add('active');
                 shuffleBtn.setAttribute('disabled', 'true');
                 rotButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
+                seqInput.setAttribute('disabled', 'true');
+                execBtn.setAttribute('disabled', 'true');
             } else {
-                statusText.innerText = `残り ${moveHistory.length} 手で初期状態に戻ります`;
-                solveBtn.innerText = "ノンストップ全自動ソルブ";
-                solveBtn.classList.remove('active');
                 shuffleBtn.removeAttribute('disabled');
                 rotButtons.forEach(btn => btn.removeAttribute('disabled'));
+                seqInput.removeAttribute('disabled');
+                execBtn.removeAttribute('disabled');
                 
-                if (moveHistory.length > 0) {
-                    solveBtn.removeAttribute('disabled');
+                if (!isSolved()) {
+                    historySolveBtn.removeAttribute('disabled');
+                    godSolveBtn.removeAttribute('disabled');
+                    statusText.style.color = "#ff9f0a";
+                    statusText.innerText = `盤面が変化しています。最短手数を計算可能です。`;
                 } else {
-                    solveBtn.setAttribute('disabled', 'true');
+                    historySolveBtn.setAttribute('disabled', 'true');
+                    godSolveBtn.setAttribute('disabled', 'true');
+                    statusText.style.color = "#00ffcc";
                     statusText.innerText = "🎉 完全に揃っています！";
                 }
+                historySolveBtn.innerText = "履歴逆再生ソルブ";
+                historySolveBtn.classList.remove('active');
+                godSolveBtn.innerText = "⚡ 神のソルブ (最短手数)";
+                godSolveBtn.classList.remove('active');
             }
         }
 
-        // 1手だけ巻き戻す内部関数
+        // --- 履歴逆再生ソルブのロジック ---
         function autoSolveStep() {
             if (moveHistory.length === 0) {
                 stopAutoSolve();
                 return;
             }
             let lastMove = moveHistory.pop();
-            rotate2x2(lastMove.area, !lastMove.cw); // 逆回転
+            rotate2x2(lastMove.area, !lastMove.cw); 
             updateUI();
         }
 
-        // 自動ソルブの開始・停止を切り替える
-        function toggleAutoSolve() {
-            if (solveTimer) {
-                stopAutoSolve();
-            } else {
-                startAutoSolve();
+        function toggleHistorySolve() {
+            if (solveTimer) { stopAutoSolve(); } 
+            else {
+                if (moveHistory.length === 0) return;
+                document.getElementById('historySolveBtn').innerText = "一時停止する";
+                document.getElementById('historySolveBtn').classList.add('active');
+                document.getElementById('status').innerText = `履歴を逆再生中...`;
+                solveTimer = setInterval(autoSolveStep, 400);
+                updateUI();
             }
         }
 
-        function startAutoSolve() {
-            if (moveHistory.length === 0) return;
-            // 500ミリ秒（0.5秒）間隔でパラパラ再生
-            solveTimer = setInterval(autoSolveStep, 500); 
+        // --- ✨新設：神のソルブ（BFS最短手数探索）のロジック ---
+        function findShortestPath() {
+            const goalState = serializeGrid(GOAL_GRID);
+            const startState = serializeGrid(grid);
+            if (startState === goalState) return [];
+
+            const actions = [];
+            ['tl', 'tr', 'bl', 'br'].forEach(area => {
+                actions.push({ area, cw: true, is2: false, label: area.toUpperCase() });
+                actions.push({ area, cw: false, is2: false, label: area.toUpperCase() + "'" });
+                actions.push({ area, cw: true, is2: true, label: area.toUpperCase() + "2" }); 
+            });
+
+            let queue = [ { currentGrid: cloneGrid(grid), path: [] } ];
+            let visited = new Set();
+            visited.add(startState);
+
+            while (queue.length > 0) {
+                let { currentGrid, path } = queue.shift();
+
+                for (let action of actions) {
+                    let nextGrid = cloneGrid(currentGrid);
+                    if (action.is2) {
+                        rotateGridInternal(nextGrid, action.area, true);
+                        rotateGridInternal(nextGrid, action.area, true);
+                    } else {
+                        rotateGridInternal(nextGrid, action.area, action.cw);
+                    }
+
+                    let nextState = serializeGrid(nextGrid);
+                    if (nextState === goalState) {
+                        return [...path, action];
+                    }
+
+                    if (!visited.has(nextState)) {
+                        visited.add(nextState);
+                        queue.push({ currentGrid: nextGrid, path: [...path, action] });
+                    }
+                }
+            }
+            return null;
+        }
+
+        function startGodSolve() {
+            if (solveTimer) return;
+            const shortestPath = findShortestPath();
+            
+            if (!shortestPath || shortestPath.length === 0) {
+                updateUI();
+                return;
+            }
+
+            // 見つかった最短手順をキューに格納
+            godSolveQueue = shortestPath;
+            
+            const solutionString = godSolveQueue.map(a => a.label).join(" ");
+            document.getElementById('status').style.color = "#00ffcc";
+            document.getElementById('status').innerText = `神の手順を発見 (${godSolveQueue.length}手): ${solutionString}`;
+            
+            document.getElementById('godSolveBtn').innerText = "神の力で復元中...";
+            document.getElementById('godSolveBtn').classList.add('active');
+
+            // 400ms間隔で1手ずつ自動実行
+            solveTimer = setInterval(godSolveStep, 400);
             updateUI();
+        }
+
+        function godSolveStep() {
+            if (godSolveQueue.length === 0) {
+                stopAutoSolve();
+                return;
+            }
+            let nextAction = godSolveQueue.shift();
+            
+            if (nextAction.is2) {
+                rotate2x2(nextAction.area, true);
+                rotate2x2(nextAction.area, true);
+            } else {
+                rotate2x2(nextAction.area, nextAction.cw);
+            }
+            
+            // 神のソルブ中は、履歴の文字列も同時に綺麗にクリアしていく
+            moveHistory.push({ area: nextAction.area, cw: nextAction.cw });
+            if(nextAction.is2) moveHistory.push({ area: nextAction.area, cw: nextAction.cw });
+            
+            if (godSolveQueue.length === 0) {
+                moveHistory = [];
+            }
+            
+            updateUI();
+            if (godSolveQueue.length > 0) {
+                const solutionString = godSolveQueue.map(a => a.label).join(" ");
+                document.getElementById('status').innerText = `神の手順を実行中: ${solutionString}`;
+            }
         }
 
         function stopAutoSolve() {
@@ -308,6 +538,46 @@
                 rotate2x2(area, cw);
                 moveHistory.push({ area: area, cw: cw });
             }
+            updateUI();
+        }
+
+        function executeSequence() {
+            if (solveTimer) return;
+            const input = document.getElementById('seqInput').value.trim();
+            if (!input) return;
+
+            const moves = input.split(/\s+/);
+            const validAreas = ['TL', 'TR', 'BL', 'BR'];
+
+            for (let move of moves) {
+                move = move.toUpperCase();
+                let area = move.substring(0, 2);
+                let modifier = move.substring(2);
+
+                if (!validAreas.includes(area)) {
+                    alert(`無効な記号: ${move}\nTL, TR, BL, BR を使用してください。`);
+                    return;
+                }
+
+                const areaLower = area.toLowerCase();
+
+                if (modifier === "") {
+                    rotate2x2(areaLower, true);
+                    moveHistory.push({ area: areaLower, cw: true });
+                } else if (modifier === "'") {
+                    rotate2x2(areaLower, false);
+                    moveHistory.push({ area: areaLower, cw: false });
+                } else if (modifier === "2") {
+                    rotate2x2(areaLower, true);
+                    moveHistory.push({ area: areaLower, cw: true });
+                    rotate2x2(areaLower, true);
+                    moveHistory.push({ area: areaLower, cw: true });
+                } else {
+                    alert(`無効な修飾子: ${move}`);
+                    return;
+                }
+            }
+            document.getElementById('seqInput').value = "";
             updateUI();
         }
 
