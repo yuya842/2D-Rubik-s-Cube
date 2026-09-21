@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全自動ソルブ・2次元ルービックキューブ (3²)</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            background-color: #111;
+            color: #fff;
+            padding: 20px;
+        }
+        h1 { color: #00ffcc; margin-bottom: 5px; }
+        p { color: #aaa; max-width: 600px; margin: 0 auto 20px auto; font-size: 14px; line-height: 1.6; }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .board-wrapper {
+            position: relative;
+            width: 360px;
+            height: 360px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 6px;
+            background-color: #222;
+            padding: 8px;
+            border-radius: 10px;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+
+        .tile {
+            width: 80px;
+            height: 80px;
+            box-sizing: border-box;
+            background-color: #2a2a2a;
+            border-radius: 6px;
+            border: 8px solid #444; 
+            transition: all 0.15s ease;
+        }
+
+        /* 4つの2x2エリアを回転させるための専用ボタン群 */
+        .rot-btn {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background-color: #00ffcc;
+            color: #111;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .rot-btn:hover { background-color: #00ccaa; }
+        .rot-btn:active { transform: scale(0.9); }
+        .rot-btn:disabled { background-color: #333; color: #555; cursor: not-allowed; }
+
+        .tl-cw  { top: 10px; left: 10px; }   
+        .tl-ccw { top: 10px; left: 55px; }   
+        .tr-cw  { top: 10px; right: 55px; }  
+        .tr-ccw { top: 10px; right: 10px; }  
+        .bl-cw  { bottom: 10px; left: 10px; }
+        .bl-ccw { bottom: 10px; left: 55px; }
+        .br-cw  { bottom: 10px; right: 55px; }
+        .br-ccw { bottom: 10px; right: 10px; }
+
+        .button-group {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .system-btn {
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            background-color: #333;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .system-btn:hover { background-color: #00ffcc; color: #111; }
+        .system-btn:disabled {
+            background-color: #222;
+            color: #555;
+            border-color: #444;
+            cursor: not-allowed;
+        }
+
+        /* 全自動ソルブボタン */
+        .solve-btn {
+            background-color: #00ffcc;
+            color: #111;
+        }
+        .solve-btn:hover { background-color: #ffffff; border-color: #ffffff; }
+        
+        /* 停止状態のスタイル */
+        .solve-btn.active {
+            background-color: #ff3b30;
+            border-color: #ff3b30;
+            color: #fff;
+        }
+        .solve-btn.active:hover { background-color: #ff453a; }
+
+        .status-text {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #00ffcc;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>2Dルービックキューブ (3²) + ノンストップソルバー</h1>
+    <p>
+        シャッフルした後に「ノンストップ全自動ソルブ」を押すと、<br>
+        1手ずつパラパラ漫画のように自動で巻き戻り、綺麗な初期状態へ復元されます！
+    </p>
+
+    <div class="game-container">
+        <div class="board-wrapper">
+            <button class="rot-btn tl-cw" onclick="playerMove('tl', true)">↻</button>
+            <button class="rot-btn tl-ccw" onclick="playerMove('tl', false)">↺</button>
+            <button class="rot-btn tr-cw" onclick="playerMove('tr', true)">↻</button>
+            <button class="rot-btn tr-ccw" onclick="playerMove('tr', false)">↺</button>
+
+            <div class="board" id="board"></div>
+
+            <button class="rot-btn bl-cw" onclick="playerMove('bl', true)">↻</button>
+            <button class="rot-btn bl-ccw" onclick="playerMove('bl', false)">↺</button>
+            <button class="rot-btn br-cw" onclick="playerMove('br', true)">↻</button>
+            <button class="rot-btn br-ccw" onclick="playerMove('br', false)">↺</button>
+        </div>
+
+        <div class="status-text" id="status">残り 0 手で初期状態に戻ります</div>
+
+        <div class="button-group">
+            <button class="system-btn" id="shuffleBtn" onclick="shuffleBoard()">シャッフルする</button>
+            <button class="system-btn solve-btn" id="solveBtn" onclick="toggleAutoSolve()" disabled>ノンストップ全自動ソルブ</button>
+        </div>
+    </div>
+
+    <script>
+        const U = '#ff3b30'; 
+        const R = '#007aff'; 
+        const D = '#ffcc00'; 
+        const L = '#4cd964'; 
+        const X = '#444';    
+
+        let grid = [];
+        let moveHistory = [];
+        let solveTimer = null; // 自動再生用のタイマー
+
+        function initGrid() {
+            grid = [
+                [{t: U, r: X, b: X, l: L}, {t: U, r: X, b: X, l: X}, {t: U, r: R, b: X, l: X}],
+                [{t: X, r: X, b: X, l: L}, {t: X, r: X, b: X, l: X}, {t: X, r: R, b: X, l: X}],
+                [{t: X, r: X, b: D, l: L}, {t: X, r: X, b: D, l: X}, {t: X, r: R, b: D, l: X}]
+            ];
+            moveHistory = [];
+            stopAutoSolve();
+            updateUI();
+        }
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    const block = grid[r][c];
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.style.borderTopColor = block.t;
+                    tile.style.borderRightColor = block.r;
+                    tile.style.borderBottomColor = block.b;
+                    tile.style.borderLeftColor = block.l;
+                    boardElement.appendChild(tile);
+                }
+            }
+        }
+
+        function rotatePiece(piece, cw) {
+            if (cw) {
+                return { t: piece.l, r: piece.t, b: piece.r, l: piece.b };
+            } else {
+                return { t: piece.r, r: piece.b, b: piece.l, l: piece.t };
+            }
+        }
+
+        function rotate2x2(area, cw) {
+            let rStart = (area === 'bl' || area === 'br') ? 1 : 0;
+            let cStart = (area === 'tr' || area === 'br') ? 1 : 0;
+
+            let p00 = grid[rStart][cStart];     
+            let p01 = grid[rStart][cStart+1];   
+            let p10 = grid[rStart+1][cStart];   
+            let p11 = grid[rStart+1][cStart+1]; 
+
+            if (cw) {
+                grid[rStart][cStart]     = rotatePiece(p10, true); 
+                grid[rStart][cStart+1]   = rotatePiece(p00, true); 
+                grid[rStart+1][cStart+1] = rotatePiece(p01, true); 
+                grid[rStart+1][cStart]   = rotatePiece(p11, true); 
+            } else {
+                grid[rStart][cStart]     = rotatePiece(p01, false); 
+                grid[rStart][cStart+1]   = rotatePiece(p11, false); 
+                grid[rStart+1][cStart+1] = rotatePiece(p10, false); 
+                grid[rStart+1][cStart]   = rotatePiece(p00, false); 
+            }
+            renderBoard();
+        }
+
+        function playerMove(area, cw) {
+            if (solveTimer) return; // 自動再生中は通常操作を無視
+            rotate2x2(area, cw);
+            moveHistory.push({ area: area, cw: cw });
+            updateUI();
+        }
+
+        function updateUI() {
+            const solveBtn = document.getElementById('solveBtn');
+            const shuffleBtn = document.getElementById('shuffleBtn');
+            const rotButtons = document.querySelectorAll('.rot-btn');
+            const statusText = document.getElementById('status');
+            
+            if (solveTimer) {
+                statusText.innerText = `自動再生中... 残り ${moveHistory.length} 手`;
+                solveBtn.innerText = "一時停止する";
+                solveBtn.classList.add('active');
+                shuffleBtn.setAttribute('disabled', 'true');
+                rotButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
+            } else {
+                statusText.innerText = `残り ${moveHistory.length} 手で初期状態に戻ります`;
+                solveBtn.innerText = "ノンストップ全自動ソルブ";
+                solveBtn.classList.remove('active');
+                shuffleBtn.removeAttribute('disabled');
+                rotButtons.forEach(btn => btn.removeAttribute('disabled'));
+                
+                if (moveHistory.length > 0) {
+                    solveBtn.removeAttribute('disabled');
+                } else {
+                    solveBtn.setAttribute('disabled', 'true');
+                    statusText.innerText = "🎉 完全に揃っています！";
+                }
+            }
+        }
+
+        // 1手だけ巻き戻す内部関数
+        function autoSolveStep() {
+            if (moveHistory.length === 0) {
+                stopAutoSolve();
+                return;
+            }
+            let lastMove = moveHistory.pop();
+            rotate2x2(lastMove.area, !lastMove.cw); // 逆回転
+            updateUI();
+        }
+
+        // 自動ソルブの開始・停止を切り替える
+        function toggleAutoSolve() {
+            if (solveTimer) {
+                stopAutoSolve();
+            } else {
+                startAutoSolve();
+            }
+        }
+
+        function startAutoSolve() {
+            if (moveHistory.length === 0) return;
+            // 500ミリ秒（0.5秒）間隔でパラパラ再生
+            solveTimer = setInterval(autoSolveStep, 500); 
+            updateUI();
+        }
+
+        function stopAutoSolve() {
+            if (solveTimer) {
+                clearInterval(solveTimer);
+                solveTimer = null;
+            }
+            updateUI();
+        }
+
+        function shuffleBoard() {
+            initGrid(); 
+            const areas = ['tl', 'tr', 'bl', 'br'];
+            for (let i = 0; i < 20; i++) {
+                const area = areas[Math.floor(Math.random() * 4)];
+                const cw = Math.random() > 0.5;
+                rotate2x2(area, cw);
+                moveHistory.push({ area: area, cw: cw });
+            }
+            updateUI();
+        }
+
+        initGrid();
+        renderBoard();
+    </script>
+</body>
+</html>
